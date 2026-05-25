@@ -1,0 +1,8 @@
+gke.kubeconfig
+*.tfstate
+*.tfstate.backup
+gke.kubeconfig
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
