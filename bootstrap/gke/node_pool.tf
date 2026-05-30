@@ -6,7 +6,7 @@ resource "google_service_account" "np_sa" {
 }
 
 resource "google_container_node_pool" "node_pool" {
-  name_prefix    = "${var.name_prefix}-node-pool"
+  name_prefix    = "${var.name_prefix}-np"
   cluster        = google_container_cluster.cluster.name
   location       = var.zone
   node_locations = [var.zone]
