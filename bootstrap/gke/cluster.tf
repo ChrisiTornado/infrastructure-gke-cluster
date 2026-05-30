@@ -1,3 +1,17 @@
+resource "google_project_service" "services" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "iam.googleapis.com",
+    "storage.googleapis.com",
+    "dns.googleapis.com",
+  ])
+
+  project            = var.project_id
+  service            = each.value
+  disable_on_destroy = false
+}
+
 resource "google_container_cluster" "cluster" {
   name        = "demo-gke-cluster"
   description = "My Cluster"
@@ -29,15 +43,9 @@ resource "google_container_cluster" "cluster" {
   monitoring_config {
     enable_components = ["SYSTEM_COMPONENTS"]
     managed_prometheus {
-      enabled = true
-      auto_monitoring_config {
-        scope = "NONE"
-      }
+      enabled = false
     }
   }
-
-  logging_service    = "logging.googleapis.com/kubernetes"
-  monitoring_service = "monitoring.googleapis.com/kubernetes"
 
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"

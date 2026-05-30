@@ -19,6 +19,7 @@ A complete guide to provisioning a GKE cluster for testing and deploying **cert-
 ```bash
 gcloud auth login
 gcloud config set project YOUR_PROJECT_ID
+gcloud auth application-default login
 ```
 
 ---
@@ -48,8 +49,7 @@ gcloud config set project YOUR_PROJECT_ID
 Add the `terraform.tfvars` file to bootstrap/gke folder
 
 ```hcl
-project_id   = "your-gcp-project-id"
-region       = "us-central1"
+project_id = "your-gcp-project-id"
 ```
 
 ### Apply Terraform

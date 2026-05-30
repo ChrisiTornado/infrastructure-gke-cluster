@@ -1,7 +1,7 @@
 data "google_container_engine_versions" "versions" {}
 
-resource "google_service_account" "service_account" {
-  account_id   = "${var.name_prefix}-${var.project_id}-sa"
+resource "google_service_account" "np_sa" {
+  account_id   = "${var.name_prefix}-np-sa"
   display_name = "Service Account for the cluster"
 }
 
@@ -20,14 +20,14 @@ resource "google_container_node_pool" "node_pool" {
 
   node_config {
     spot         = true
-    machine_type = "e2-standard-2"
+    machine_type = var.machine_type
 
     boot_disk {
       disk_type = "pd-balanced"
       size_gb   = 32
     }
 
-    service_account = google_service_account.service_account.email
+    service_account = google_service_account.np_sa.email
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
     ]

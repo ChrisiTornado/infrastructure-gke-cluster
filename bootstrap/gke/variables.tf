@@ -6,7 +6,7 @@ variable "project_id" {
 variable "name_prefix" {
   description = "Prefix name for the resources"
   type        = string
-  default     = "inenp-project"
+  default     = "inenp-"
 }
 
 variable "region" {
