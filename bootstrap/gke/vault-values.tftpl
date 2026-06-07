@@ -1,0 +1,41 @@
+injector:
+  enabled: false
+
+server:
+  standalone:
+    enabled: true
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: standard-rwo
+
+  serviceAccount:
+    annotations:
+      iam.gke.io/gcp-service-account: ${vault_sa_email}
+
+  ha:
+    enabled: false # disabled this for now
+
+  config: |
+    ui = true
+
+    listener "tcp" {
+      tls_disable = 1
+      address     = "[::]:8200"
+    }
+
+    storage "file" {
+      path = "/vault/data"
+    }
+
+    seal "gcpckms" {
+      project    = "${project_id}"
+      region     = "${region}"
+      key_ring   = "${vault_kms_key_ring}"
+      crypto_key = "${vault_kms_crypto_key}"
+    }
+
+ui:
+  enabled: true
+  serviceType: ClusterIP
