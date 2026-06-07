@@ -25,10 +25,15 @@ resource "google_service_account" "vault" {
   project      = var.project_id
 }
 
-# Give Vault SA permission to use KMS key for encrypt/decrypt
-resource "google_kms_crypto_key_iam_member" "vault_unseal" {
+# Give Vault SA permission to use KMS key
+resource "google_kms_crypto_key_iam_member" "vault_kms_roles" {
+  for_each = toset([
+    "roles/cloudkms.cryptoKeyEncrypterDecrypter",
+    "roles/cloudkms.viewer",
+  ])
+
   crypto_key_id = google_kms_crypto_key.vault_unseal.id
-  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  role          = each.value
   member        = "serviceAccount:${google_service_account.vault.email}"
 }
 
