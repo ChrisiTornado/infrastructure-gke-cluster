@@ -40,7 +40,6 @@ resource "kubernetes_secret_v1" "argocd_gitops_repository" {
   data = {
     type          = "git"
     url           = local.gitops_repo_url
-    sshPrivateKey = tls_private_key.argocd_gitops_deploy_key.private_key_openssh
   }
 }
 
@@ -68,4 +67,61 @@ resource "helm_release" "argocd" {
     github_repository_deploy_key.argocd_gitops_read_only,
     kubernetes_secret_v1.argocd_gitops_repository
   ]
+}
+
+resource "kubernetes_manifest" "argocd_bootstrap_project" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "AppProject"
+    metadata = {
+      name      = "bootstrap"
+      namespace = "argocd"
+    }
+    spec = {
+      description = "Allows the root app-of-apps to create ArgoCD Application and Project resources from the GitOps repository."
+      sourceRepos = [local.gitops_repo_url]
+      destinations = [{
+        namespace = "argocd"
+        server    = "https://kubernetes.default.svc"
+      }]
+      clusterResourceWhitelist = []
+      namespaceResourceWhitelist = [
+        { group = "argoproj.io", kind = "Application" },
+        { group = "argoproj.io", kind = "AppProject" }
+      ]
+    }
+  }
+
+  depends_on = [helm_release.argocd]
+}
+
+resource "kubernetes_manifest" "argocd_root_app" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name       = "root"
+      namespace  = "argocd"
+      finalizers = ["resources-finalizer.argocd.argoproj.io"]
+    }
+    spec = {
+      project = "bootstrap"
+      source = {
+        repoURL        = local.gitops_repo_url
+        targetRevision = var.gitops_target_revision
+        path           = var.gitops_root_path
+        directory      = { recurse = true }
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "argocd"
+      }
+      syncPolicy = {
+        automated   = { prune = true, selfHeal = true }
+        syncOptions = ["CreateNamespace=true"]
+      }
+    }
+  }
+
+  depends_on = [kubernetes_manifest.argocd_bootstrap_project]
 }
