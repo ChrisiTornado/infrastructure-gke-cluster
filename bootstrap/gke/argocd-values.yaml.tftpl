@@ -1,0 +1,75 @@
+global:
+  domain: ${argocd_hostname}
+
+configs:
+  cm:
+    admin.enabled: "true"
+    users.anonymous.enabled: "false"
+    timeout.reconciliation: 120s
+    timeout.reconciliation.jitter: 60s
+  params:
+    server.insecure: true
+  rbac:
+    policy.default: role:readonly
+    scopes: "[groups]"
+
+server:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    controller: gke
+    ingressClassName: ${argocd_ingress_class_name}
+    hostname: ${argocd_hostname}
+    path: /
+    pathType: Prefix
+    gke:
+      managedCertificate:
+        create: true
+      frontendConfig:
+        redirectToHttps:
+          enabled: true
+
+extraObjects:
+  - apiVersion: argoproj.io/v1alpha1
+    kind: AppProject
+    metadata:
+      name: bootstrap
+      namespace: argocd
+    spec:
+      description: Allows the root app-of-apps to create ArgoCD Application and Project resources from the GitOps repository.
+      sourceRepos:
+        - ${gitops_repo_url}
+      destinations:
+        - namespace: argocd
+          server: https://kubernetes.default.svc
+      clusterResourceWhitelist: []
+      namespaceResourceWhitelist:
+        - group: argoproj.io
+          kind: Application
+        - group: argoproj.io
+          kind: AppProject
+  - apiVersion: argoproj.io/v1alpha1
+    kind: Application
+    metadata:
+      name: root
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: bootstrap
+      source:
+        repoURL: ${gitops_repo_url}
+        targetRevision: ${gitops_target_revision}
+        path: ${gitops_root_path}
+        directory:
+          recurse: true
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: argocd
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
