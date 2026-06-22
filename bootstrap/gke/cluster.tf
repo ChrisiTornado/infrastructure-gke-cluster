@@ -6,6 +6,7 @@ resource "google_project_service" "services" {
     "storage.googleapis.com",
     "dns.googleapis.com",
     "cloudkms.googleapis.com",
+    "sqladmin.googleapis.com",
   ])
 
   project            = var.project_id
