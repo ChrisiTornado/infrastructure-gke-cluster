@@ -32,11 +32,11 @@ resource "google_project_iam_member" "crossplane" {
 }
 
 resource "google_service_account_iam_member" "crossplane_compute_wi" {
-  for_each = toset(local.components.crossplane.members)
+  for_each = toset(local.crossplane.members)
 
   service_account_id = google_service_account.crossplane.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${local.wi_pool}[${local.components.crossplane.namespace}/${each.value}]"
+  member             = "serviceAccount:${local.wi_pool}[${local.crossplane.namespace}/${each.value}]"
 }
 
 output "crossplane_gsa_email" {
