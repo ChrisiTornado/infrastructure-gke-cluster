@@ -1,0 +1,14 @@
+project_id = "your-gcp-project-id"
+
+argocd_hostname = "argocd.example.com"
+
+gitops_repo_owner = "your-github-user-or-org"
+gitops_repo_name  = "your-new-gitops-repo"
+
+# Optional overrides
+# region                    = "europe-west4"
+# zone                      = "europe-west4-a"
+# argocd_chart_version      = "9.5.17"
+# argocd_ingress_class_name = "gce"
+# gitops_target_revision    = "main"
+# gitops_root_path          = "apps"
