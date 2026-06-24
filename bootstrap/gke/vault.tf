@@ -59,13 +59,3 @@ output "vault_sa_email" {
   description = "Vault GCP service account email"
 }
 
-resource "local_file" "vault_helm_values" {
-  content = templatefile("${path.module}/vault-values.tftpl", {
-    vault_sa_email       = google_service_account.vault.email
-    project_id           = var.project_id
-    region               = var.region
-    vault_kms_key_ring   = google_kms_key_ring.vault.name
-    vault_kms_crypto_key = google_kms_crypto_key.vault_unseal.name
-  })
-  filename = "${path.module}/../../helm/vault/values.yaml"
-}
