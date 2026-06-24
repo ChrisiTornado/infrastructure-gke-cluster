@@ -38,8 +38,8 @@ resource "kubernetes_secret_v1" "argocd_gitops_repository" {
   type = "Opaque"
 
   data = {
-    type          = "git"
-    url           = local.gitops_repo_url
+    type = "git"
+    url  = local.gitops_repo_url
   }
 }
 
