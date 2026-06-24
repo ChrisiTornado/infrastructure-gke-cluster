@@ -16,15 +16,15 @@ resource "google_service_account" "crossplane" {
 
 resource "google_project_iam_member" "crossplane" {
   for_each = toset([
-      "roles/cloudsql.admin",
-      "roles/iam.editor",
-      "roles/compute.editor",
-      "roles/container.editor",
-      "roles/servicenetworking.editor",
-      "roles/servicenetworking.networksAdmin",
-      "roles/databasecenter.admin",
-      "roles/cloudsql.instanceUser",
-      "roles/iam.workloadIdentityPoolAdmin",
+    "roles/cloudsql.admin",
+    "roles/iam.editor",
+    "roles/compute.editor",
+    "roles/container.editor",
+    "roles/servicenetworking.editor",
+    "roles/servicenetworking.networksAdmin",
+    "roles/databasecenter.admin",
+    "roles/cloudsql.instanceUser",
+    "roles/iam.workloadIdentityPoolAdmin",
   ])
 
   project = var.project_id
