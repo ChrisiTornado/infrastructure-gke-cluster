@@ -1,0 +1,31 @@
+global:
+  domain: ${argocd_hostname}
+
+configs:
+  cm:
+    admin.enabled: "true"
+    users.anonymous.enabled: "false"
+    timeout.reconciliation: 120s
+    timeout.reconciliation.jitter: 60s
+  params:
+    server.insecure: true
+  rbac:
+    policy.default: role:readonly
+    scopes: "[groups]"
+
+server:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: true
+    controller: gke
+    ingressClassName: ${argocd_ingress_class_name}
+    hostname: ${argocd_hostname}
+    path: /
+    pathType: Prefix
+    gke:
+      managedCertificate:
+        create: true
+      frontendConfig:
+        redirectToHttps:
+          enabled: true

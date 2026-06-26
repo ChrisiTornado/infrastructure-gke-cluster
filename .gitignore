@@ -2,3 +2,5 @@ gke_gcloud_auth_plugin_cache
 *.tfvars
 .terraform*
 *tfstate*
+helm/vault/values.yaml
+gke.kubeconfig

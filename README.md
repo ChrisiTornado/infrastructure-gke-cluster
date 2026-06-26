@@ -1,47 +1,17 @@
 # infrastructure-gke-cluster
 
-OpenTofu (Terraform-compatible) IaC for provisioning the GKE platform cluster on Google Cloud. This repository covers Day 1 bootstrapping: VPC, GKE cluster, node pool, IAM/Workload Identity, and the ArgoCD installation that hands over control to the GitOps repository.
-
-## Overview
-
-After `tofu apply` completes, the cluster is fully provisioned and ArgoCD is running. From that point on, all further cluster changes are managed via the GitOps repository.
-
-**Domain:** `crypto-haven.fhbgl.study`  
-**Region / Zone:** `europe-west4` / `europe-west4-a`
-
-Related repositories:
-- [gitops-gke](https://github.com/Toerbi1/gitops-gke) — ArgoCD GitOps manifests for all cluster workloads
-
-## Repository Structure
-
-```
-.
-├── bootstrap/
-│   └── gke/
-│       ├── cluster.tf        # GKE cluster (Workload Identity, ADVANCED_DATAPATH, release channel)
-│       ├── node_pool.tf      # Spot node pool with autoscaling (min 1, max 2 × e2-standard-2)
-│       ├── vpc.tf            # VPC + subnet (10.10.0.0/24)
-│       ├── sa-gcs-reader.tf  # Workload Identity service account
-│       ├── variables.tf      # Input variables
-│       ├── outputs.tf        # Cluster name, zone, kubeconfig command
-│       ├── terraform.tf      # Required providers and versions
-│       ├── provider.tf       # Google provider configuration
-│       └── .tflint.hcl       # TFLint rules
-└── .github/
-    └── workflows/
-        └── validate.yml      # CI: fmt check, tflint, tofu validate
-```
+Bootstrap repository for a GKE cluster that installs ArgoCD through Terraform/OpenTofu. After the first IaC run, ArgoCD points to a separate GitOps repository and reconciles cluster workloads from Git.
 
 ## Prerequisites
 
-| Tool | Version |
-|------|---------|
-| `gcloud` CLI | latest |
-| `opentofu` | >= 1.12 |
-| `kubectl` | >= 1.35 |
-| `tflint` | latest |
+| Tool | Version | Install |
+|------|---------|---------|
+| `gcloud` CLI | latest | https://cloud.google.com/sdk/docs/install |
+| `opentofu` | >= 1.12 | https://opentofu.org/docs/intro/install/ |
+| `kubectl` | >= 1.35 | https://kubernetes.io/docs/tasks/tools/ |
+| GitHub token | repo admin scope for the GitOps repo | required only when Terraform creates the deploy key |
 
-**GCP setup:**
+## GCP Setup
 
 ```bash
 gcloud auth login
@@ -49,54 +19,104 @@ gcloud config set project YOUR_PROJECT_ID
 gcloud auth application-default login
 ```
 
-## Provisioning the Cluster
+If you use a service account key, set `GOOGLE_APPLICATION_CREDENTIALS` to the key path.
 
-Create a `terraform.tfvars` file in `bootstrap/gke/` (this file is gitignored):
+## GitHub Setup
+
+Terraform creates a read-only deploy key for the new GitOps repository and stores the private key as an ArgoCD repository Secret in the cluster.
+
+Set a GitHub token before running `tofu apply`:
+
+```bash
+export GITHUB_TOKEN=YOUR_TOKEN
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:GITHUB_TOKEN = "YOUR_TOKEN"
+```
+
+If the GitOps repository does not exist yet, create it first or set `create_gitops_deploy_key = false`, then add the `argocd_gitops_deploy_key_public` output manually as a read-only deploy key.
+
+## Repository Structure
+
+```text
+.
+├── bootstrap/
+│   └── gke/
+│       ├── argocd.tf                  # ArgoCD namespace, deploy key, repo secret, Helm release
+│       ├── argocd-values.yaml.tftpl   # ArgoCD Helm values plus root Application
+│       ├── cluster.tf                 # GKE cluster
+│       ├── node_pool.tf               # GKE node pool
+│       ├── provider.tf                # Google, GitHub, Kubernetes, Helm providers
+│       ├── terraform.tf               # Required provider versions
+│       ├── terraform.tfvars.example   # Example variable file
+│       └── variables.tf               # Input variables
+└── GITOPS_REPO_HANDOFF.md             # What to create in the separate GitOps repo
+```
+
+## Bootstrap Flow
+
+1. Terraform creates the GKE cluster and node pool.
+2. Terraform creates the `argocd` namespace.
+3. Terraform generates an SSH deploy key.
+4. Terraform registers the public key on the GitOps GitHub repository.
+5. Terraform creates an ArgoCD repository Secret with the private key.
+6. Terraform installs ArgoCD from the pinned `argo/argo-cd` Helm chart.
+7. The ArgoCD Helm release creates a root `Application` named `root`.
+8. The root Application reconciles `gitops/apps` from the separate GitOps repository.
+
+## Configure Variables
+
+Copy the example file and fill in real values:
+
+```bash
+cd bootstrap/gke
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Minimum required values:
 
 ```hcl
 project_id = "your-gcp-project-id"
+
+argocd_hostname = "argocd.example.com"
+
+gitops_repo_owner = "your-github-user-or-org"
+gitops_repo_name  = "your-new-gitops-repo"
 ```
 
-Then apply:
+## Apply
 
 ```bash
-cd bootstrap/gke/
+cd bootstrap/gke
 
 tofu init
 tofu plan
 tofu apply
-
-# Configure kubectl
-$(tofu output -raw kubernetes_cluster_gcloud_command)
-
-# Verify
-kubectl get nodes
 ```
 
-## Infrastructure Details
+Configure `kubectl` after the cluster exists:
 
-| Resource | Configuration |
-|----------|--------------|
-| Cluster | Zonal (`europe-west4-a`), release channel `REGULAR` |
-| Node pool | Spot instances, `e2-standard-2`, autoscaling 1–2 nodes |
-| Networking | Custom VPC, `ADVANCED_DATAPATH` (eBPF/Cilium) |
-| Workload Identity | Enabled — no static service account keys |
-| Disk | `pd-balanced`, 32 GB per node |
-
-Spot instances are used to minimise cost. The autoscaler scales to 2 nodes under load and back to 1 at idle.
-
-## CI Pipeline
-
-Every pull request targeting `bootstrap/**` runs:
-1. `tofu fmt -check` — formatting check
-2. `tflint` — lint with the GCP plugin
-3. `tofu init -backend=false` + `tofu validate` — syntax validation
-
-Validation steps (`fmt`, `tflint`, `tofu validate`) run without cloud credentials (`-backend=false`). Applying the IaC requires local GCP credentials (`gcloud auth application-default login`).
+```bash
+$(tofu output -raw kubernetes_cluster_gcloud_command)
+kubectl get nodes
+kubectl get pods -n argocd
+kubectl get applications -n argocd
+```
 
 ## Teardown
 
 ```bash
-cd bootstrap/gke/
+cd bootstrap/gke
 tofu destroy
 ```
+
+## Notes
+
+- ArgoCD anonymous UI access is disabled.
+- ArgoCD RBAC is enabled with read-only as the default role for authenticated users.
+- The ArgoCD UI is exposed only through the configured GKE Ingress hostname.
+- The ArgoCD chart version is pinned through `argocd_chart_version`.
+- The generated private deploy key is stored in Terraform state. For production, source the key from a dedicated secret manager instead.
