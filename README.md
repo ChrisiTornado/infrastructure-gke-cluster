@@ -1,4 +1,4 @@
-# infrastructure-engineering-first-gke-cluster
+# infrastructure-gke-cluster
 
 Bootstrap repository for a GKE cluster that installs ArgoCD through Terraform/OpenTofu. After the first IaC run, ArgoCD points to a separate GitOps repository and reconciles cluster workloads from Git.
 
